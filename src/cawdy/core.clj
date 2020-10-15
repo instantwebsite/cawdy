@@ -4,8 +4,11 @@
     [cheshire.core :as json]
     [clj-http.client :as http]))
 
-(defn config [address]
-  (-> (http/get (str address "/config")
+(defn connect [address]
+  {:address address})
+
+(defn config [conn]
+  (-> (http/get (str (:address conn) "/config")
                 {:content-type :json})
       :body
       (json/parse-string true)
@@ -77,6 +80,21 @@
   (has-route-with-host? example-routes "cawdy3.xip.io"))
   ;; => false
 
+(defn create-server [conn listen]
+  (let [cfg (config (:address conn))
+        new-cfg (assoc-in cfg
+                          [:apps :http :servers listen])])
+  (http/post (str (:address conn) "/load")
+             {:content-type :json
+              :body (json/generate-string new-cfg)})
+  {:listen [listen]
+   :automatic_https {:disable true}
+   :routes []})
+
+(defn add-route [conn server host type arg]
+  (when (nil? (get server-types type))
+    (throw (Exception. (format "Couldn't find server of type %s" type))))
+  (update server :routes conj {:handle []}))
 
 (defn add-server [address id type args]
   (when (nil? (get server-types type))

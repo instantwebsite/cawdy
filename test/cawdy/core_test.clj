@@ -7,20 +7,20 @@
     [clojure.java.io :as io]
     [cawdy.core :as cawdy]))
 
-(def api-uri "http://localhost:2019")
+(def conn (cawdy/connect "http://localhost:2019"))
 
 ;; cawdy API - Requires running caddy instance with Admin API on localhost:2019
 ;; Tested with Caddy v2.2.0
 
 (defn get-config []
-  (cawdy/config api-uri))
+  (cawdy/config conn))
 
 (defn get-handlers [id]
-  (cawdy/handlers api-uri id))
+  (cawdy/handlers (:address conn) id))
 
 (defn add-simple-response [id]
   (cawdy/add-server
-    api-uri
+    (:address conn)
     id
     :static
     {:body "hello"}))
@@ -28,20 +28,20 @@
 (defn add-static-server
   ([id directory]
    (cawdy/add-server
-     api-uri
+     (:address conn)
      id
      :files
      {:directory directory}))
   ([id directory listen]
    (cawdy/add-server
-     api-uri
+     (:address conn)
      id
      :files
      {:directory directory
       :listen listen}))
   ([id directory listen host]
    (cawdy/add-server
-     api-uri
+     (:address conn)
      id
      :files
      {:directory directory
@@ -49,7 +49,7 @@
       :host host})))
 
 (defn clean []
-  (cawdy/clean-config api-uri))
+  (cawdy/clean-config (:address conn)))
 
 ;; Test utils
 (defn http-is [url should-be]
@@ -65,17 +65,29 @@
     (io/make-parents file-path)
     (spit (io/file file-path) file-content)))
 
+(comment
+
+  (def conn (cawdy/connect "localhost:2019"))
+
+  (-> conn
+      (create-server ":443")
+      (add-route server "localhost" "/tmp/cawdytest")
+      (remove-route server "localhost")
+      (delete-server ":443")))
+
+
 (deftest cawdy-tests
   (testing "setting config"
     (clean)
     (is (= {} (get-config)))
-    (add-simple-response :my-id)
-    (is (= (get-config)
-           {:apps {:http {:servers {:my-id {:listen [":2015"],
-                                            :automatic_https {:disable true}
-                                            :routes [{:match [{:host ["localhost"]}]
-                                                      :handle [{:body "hello",
-                                                                :handler "static_response"}]}]}}}}})))
+    (let [server (cawdy/create-server conn "2015")]
+      (cawdy/add-route conn server "localhost" :static "hello")
+      (is (= (get-config)
+             {:apps {:http {:servers {:my-id {:listen [":2015"],
+                                              :automatic_https {:disable true}
+                                              :routes [{:match [{:host ["localhost"]}]
+                                                        :handle [{:body "hello",
+                                                                  :handler "static_response"}]}]}}}}}))))
   (testing "getting handlers"
     (clean)
     (add-simple-response :my-id)
@@ -112,7 +124,7 @@
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
     (add-static-server :my-id "/tmp/cawdytest" ":2016" "cawdy.127.0.0.1.xip.io")
-    (add-static-server :my-id "/tmp/cawdytest2" ":2016" "cawdy2.127.0.0.1.xip.io")
+    (add-static-server :my-other-id "/tmp/cawdytest2" ":2016" "cawdy2.127.0.0.1.xip.io")
 
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
     (http-is "http://cawdy2.127.0.0.1.xip.io:2016/file" "hello from domain2"))
