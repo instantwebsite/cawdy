@@ -1,8 +1,24 @@
 # cawdy
 
+[![Clojars Project](https://img.shields.io/clojars/v/cawdy.svg)](https://clojars.org/cawdy)
+
 Clojure library for interacting with Caddy via the HTTP Admin API
 
 Tested with Caddy v2.2.0
+
+## Installation
+
+### Leiningen
+
+```
+[cawdy "0.1.0"]
+```
+
+### deps.edn
+
+```
+cawdy {:mvn/version "0.1.0"}
+```
 
 ## Usage
 
