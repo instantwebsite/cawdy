@@ -15,6 +15,9 @@
 (defn get-config []
   (cawdy/config api-uri))
 
+(defn get-handlers [id]
+  (cawdy/handlers api-uri id))
+
 (defn add-simple-response [id]
   (cawdy/add-server
     api-uri
@@ -69,8 +72,17 @@
     (add-simple-response :my-id)
     (is (= (get-config)
            {:apps {:http {:servers {:my-id {:listen [":2015"],
-                                            :routes [{:handle [{:body "hello",
+                                            :automatic_https {:disable true}
+                                            :routes [{:match [{:host ["localhost"]}]
+                                                      :handle [{:body "hello",
                                                                 :handler "static_response"}]}]}}}}})))
+  (testing "getting handlers"
+    (clean)
+    (add-simple-response :my-id)
+    (is (= (get-handlers :my-id)
+           [{:body "hello",
+             :handler "static_response"}])))
+
   (testing "Setting simple response"
     (clean)
     (add-simple-response :my-id)
@@ -80,7 +92,6 @@
     (clean)
     (create-directory "/tmp/cawdytest" "hello there")
     (add-static-server :my-id "/tmp/cawdytest")
-    (pprint (get-config))
     (http-is "http://localhost:2015/file" "hello there"))
 
   (testing "Files server with different listen address"
@@ -92,7 +103,7 @@
   (testing "Listen to domain"
     (clean)
     (create-directory "/tmp/cawdytest" "hello from domain")
-    (add-static-server :my-id "/tmp/cawdytest" "cawdy.127.0.0.1.xip.io:2016")
+    (add-static-server :my-id "/tmp/cawdytest" ":2016" "cawdy.127.0.0.1.xip.io")
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain"))
 
   (testing "Two domains at the same time"
@@ -100,8 +111,19 @@
     (create-directory "/tmp/cawdytest" "hello from domain")
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
-    (add-static-server :my-id "/tmp/cawdytest" "localhost:2016" "cawdy.127.0.0.1.xip.io")
-    (add-static-server :my-id "/tmp/cawdytest2" "localhost:2016" "cawdy2.127.0.0.1.xip.io")
+    (add-static-server :my-id "/tmp/cawdytest" ":2016" "cawdy.127.0.0.1.xip.io")
+    (add-static-server :my-id "/tmp/cawdytest2" ":2016" "cawdy2.127.0.0.1.xip.io")
 
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
-    (http-is "http://cawdy2.127.0.0.1.xip.io:2016/file" "hello from domain2")))
+    (http-is "http://cawdy2.127.0.0.1.xip.io:2016/file" "hello from domain2"))
+
+  (testing "Overwriting domain"
+    (clean)
+    (create-directory "/tmp/cawdytest" "hello from domain")
+    (create-directory "/tmp/cawdytest2" "hello from domain2")
+
+    (add-static-server :my-id "/tmp/cawdytest" "localhost:2016" "cawdy.127.0.0.1.xip.io")
+    (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
+
+    (add-static-server :my-id "/tmp/cawdytest2" "localhost:2016" "cawdy.127.0.0.1.xip.io")
+    (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain2")))
