@@ -16,49 +16,19 @@
   (cawdy/config conn))
 
 (defn get-handlers [id]
-  (cawdy/handlers (:address conn) id))
-
-(defn add-simple-response [id]
-  (cawdy/add-server
-    (:address conn)
-    id
-    :static
-    {:body "hello"}))
-
-(defn add-static-server
-  ([id directory]
-   (cawdy/add-server
-     (:address conn)
-     id
-     :files
-     {:directory directory}))
-  ([id directory listen]
-   (cawdy/add-server
-     (:address conn)
-     id
-     :files
-     {:directory directory
-      :listen listen}))
-  ([id directory listen host]
-   (cawdy/add-server
-     (:address conn)
-     id
-     :files
-     {:directory directory
-      :listen listen
-      :host host})))
+  (cawdy/handlers conn id))
 
 (defn clean []
-  (cawdy/clean-config (:address conn)))
+  (cawdy/clean-config conn))
 
 ;; Test utils
 (defn http-is [url should-be]
   (is (= should-be
-         (:body (http/get url {:content-type :json
-                               :retry-handler (fn [ex try-count http-context]
-                                                (println "Got:" ex)
-                                                (Thread/sleep 1000)
-                                                (if (> try-count 4) false true))})))))
+         (:body (http/get url {:content-type :json})))))
+                               ;; :retry-handler (fn [ex try-count http-context]
+                               ;;                  (println "Got:" ex)
+                               ;;                  (Thread/sleep 1000)
+                               ;;                  (if (> try-count 4) false true)})))))
 
 (defn create-directory [path file-content]
   (let [file-path (str path "/file")]
@@ -80,42 +50,47 @@
   (testing "setting config"
     (clean)
     (is (= {} (get-config)))
-    (let [server (cawdy/create-server conn :my-id "2015")]
-      (cawdy/add-route conn server "localhost" :static "hello")
-      (is (= (get-config)
-             {:apps {:http {:servers {:my-id {:listen [":2015"],
-                                              :automatic_https {:disable true}
-                                              :routes [{:match [{:host ["localhost"]}]
-                                                        :handle [{:body "hello",
-                                                                  :handler "static_response"}]}]}}}}}))))
+    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
+    (is (= (get-config)
+           {:apps {:http {:servers {:my-id {:listen [":2015"],
+                                            :automatic_https {:disable true}
+                                            :routes [{:match [{:host ["localhost"]}]
+                                                      :handle [{:body "hello",
+                                                                :handler "static_response"}]}]}}}}})))
   (testing "getting handlers"
     (clean)
-    (add-simple-response :my-id)
-    (is (= (get-handlers :my-id)
+    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
+    (is (= (cawdy/handlers conn :my-id)
            [{:body "hello",
              :handler "static_response"}])))
 
   (testing "Setting simple response"
     (clean)
-    (add-simple-response :my-id)
+    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
     (http-is "http://localhost:2015" "hello"))
 
   (testing "Add files server"
     (clean)
     (create-directory "/tmp/cawdytest" "hello there")
-    (add-static-server :my-id "/tmp/cawdytest")
+    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/add-route conn :my-id "localhost" :files {:root "/tmp/cawdytest"})
     (http-is "http://localhost:2015/file" "hello there"))
 
   (testing "Files server with different listen address"
     (clean)
     (create-directory "/tmp/cawdytest" "hello there")
-    (add-static-server :my-id "/tmp/cawdytest" ":2016")
+    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/add-route conn :my-id "localhost" :files {:root "/tmp/cawdytest"})
     (http-is "http://localhost:2016/file" "hello there"))
 
   (testing "Listen to domain"
     (clean)
     (create-directory "/tmp/cawdytest" "hello from domain")
-    (add-static-server :my-id "/tmp/cawdytest" ":2016" "cawdy.127.0.0.1.xip.io")
+    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain"))
 
   (testing "Two domains at the same time"
@@ -123,8 +98,10 @@
     (create-directory "/tmp/cawdytest" "hello from domain")
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
-    (add-static-server :my-id "/tmp/cawdytest" ":2016" "cawdy.127.0.0.1.xip.io")
-    (add-static-server :my-other-id "/tmp/cawdytest2" ":2016" "cawdy2.127.0.0.1.xip.io")
+    (cawdy/create-server conn :my-id ":2016")
+
+    (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
+    (cawdy/add-route conn :my-id "cawdy2.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest2"})
 
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
     (http-is "http://cawdy2.127.0.0.1.xip.io:2016/file" "hello from domain2"))
@@ -134,8 +111,13 @@
     (create-directory "/tmp/cawdytest" "hello from domain")
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
-    (add-static-server :my-id "/tmp/cawdytest" "localhost:2016" "cawdy.127.0.0.1.xip.io")
+    (cawdy/create-server conn :my-id ":2016")
+
+    (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
 
-    (add-static-server :my-id "/tmp/cawdytest2" "localhost:2016" "cawdy.127.0.0.1.xip.io")
+    (pprint (cawdy/handlers conn :my-id))
+    (pprint (cawdy/routes conn :my-id))
+
+    (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest2"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain2")))

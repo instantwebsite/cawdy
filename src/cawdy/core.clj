@@ -14,16 +14,23 @@
       (json/parse-string true)
       (or {})))
 
+(defn mmap [a b]
+  (map b a))
+
 (defn handlers [address id]
   (let [config (config address)]
-    (-> config
-        :apps
-        :http
-        :servers
-        id
-        :routes
-        first
-        :handle)))
+    (->> (-> config
+             :apps
+             :http
+             :servers
+             id
+             :routes)
+         (map :handle)
+         (flatten)
+         (into []))))
+
+(comment
+  (pprint (handlers (connect "http://localhost:2019") :my-id)))
 
 (defn routes [address id]
   (let [config (config address)]
@@ -34,8 +41,49 @@
         id
         :routes)))
 
-(defn clean-config [address]
-  (-> (http/delete (str address "/config/")
+(comment
+  (pprint (routes (connect "http://localhost:2019") :my-id)))
+
+(def example-routes
+  [{:handle [{:handler "file_server", :root "/tmp/cawdytest"}],
+    :match [{:host ["cawdy.127.0.0.1.xip.io"]}]}
+   {:handle [{:handler "file_server", :root "/tmp/cawdytest2"}],
+    :match [{:host ["cawdy2.127.0.0.1.xip.io"]}]}])
+
+(defn has-route-with-host? [routes host]
+  (let [all-matchers (map #(-> % :match first) routes)
+        all-hosts (map #(-> % :host first) all-matchers)]
+    (boolean
+      (some #(= host %) all-hosts))))
+
+(defn replace-route-with-host [routes host with]
+  (into []
+    (if (has-route-with-host? routes host)
+      (map (fn [route]
+             (if (= (-> route :match first :host first)
+                    host)
+               with
+               route))
+           routes)
+      (conj routes with))))
+
+(comment
+  ;; Overwriting
+  (replace-route-with-host example-routes
+                           "cawdy.127.0.0.1.xip.io"
+                           {:yeah 'boi})
+  ;; no previous
+  (replace-route-with-host []
+                           "cawdy.127.0.0.1.xip.io"
+                           {:yeah 'boi})
+
+  ;; no match adds
+  (replace-route-with-host example-routes
+                           "cawdy3.127.0.0.1.xip.io"
+                           {:yeah 'boi}))
+
+(defn clean-config [conn]
+  (-> (http/delete (str (:address conn) "/config/")
                    {:content-type :json})
       :body))
 
@@ -68,9 +116,11 @@
       (some #(= host %) all-hosts))))
 
 (comment
-  (def example-routes [{:handle [{:handler "file_server", :root "/tmp/cawdytest"}]
+  (def example-routes [{:handle [{:handler "file_server",
+                                  :root "/tmp/cawdytest"}]
                         :match [{:host ["cawdy.xip.io"]}]}
-                       {:handle [{:handler "static_Response", :body "something"}]
+                       {:handle [{:handler "static_Response",
+                                  :body "something"}]
                         :match [{:host ["cawdy2.xip.io"]}]}])
 
   (has-route-with-host? example-routes "cawdy.xip.io")
@@ -85,21 +135,57 @@
              {:content-type :json
               :body (json/generate-string cfg)}))
 
-(defn create-server [conn listen]
+(defn create-server [conn id listen]
   (let [cfg (config conn)
+        server {:listen [listen]
+                :automatic_https {:disable true}
+                :routes []}
         new-cfg (assoc-in cfg
-                          [:apps :http :servers listen]
-                          {})]
+                          [:apps :http :servers id]
+                          server)]
     (save-config conn new-cfg)
-    {:listen [listen]
-     :automatic_https {:disable true}
-     :routes []}))
+    new-cfg))
 
-(defn add-route [conn server host type arg]
+(defn static-route [{:keys [body]}]
+  {:handler "static_response"
+   :body body})
+
+(defn files-route [{:keys [root]}]
+  {:handler "file_server"
+   :root root})
+
+(def route-types
+  {:static static-route
+   :files files-route})
+
+(defn add-route [conn id host type arg]
   (when (nil? (get server-types type))
     (throw (Exception. (format "Couldn't find server of type %s" type))))
-  (let [cfg (config conn)]
-    (update server :routes conj {:handle []})))
+  (let [cfg (config conn)
+        route-fn (get route-types type)
+        route-res (route-fn arg)
+
+        routes (routes conn id)
+        _ (println "current routes")
+        _ (pprint routes)
+
+        new-routes (replace-route-with-host
+                     routes
+                     host
+                     route-res)
+
+        _ (println "new routes")
+        _ (pprint new-routes)
+
+        handler (merge {:match [{:host [host]}]
+                        :handle new-routes})
+        new-cfg (assoc-in cfg
+                          [:apps :http :servers id :routes]
+                          new-routes)]
+    (println "saving cfg")
+    (pprint new-cfg)
+    (save-config conn new-cfg)
+    new-cfg))
 
 (defn add-server [address id type args]
   (when (nil? (get server-types type))
