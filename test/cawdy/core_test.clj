@@ -80,7 +80,7 @@
   (testing "setting config"
     (clean)
     (is (= {} (get-config)))
-    (let [server (cawdy/create-server conn "2015")]
+    (let [server (cawdy/create-server conn :my-id "2015")]
       (cawdy/add-route conn server "localhost" :static "hello")
       (is (= (get-config)
              {:apps {:http {:servers {:my-id {:listen [":2015"],

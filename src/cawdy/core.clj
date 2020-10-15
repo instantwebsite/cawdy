@@ -80,21 +80,26 @@
   (has-route-with-host? example-routes "cawdy3.xip.io"))
   ;; => false
 
-(defn create-server [conn listen]
-  (let [cfg (config (:address conn))
-        new-cfg (assoc-in cfg
-                          [:apps :http :servers listen])])
+(defn save-config [conn cfg]
   (http/post (str (:address conn) "/load")
              {:content-type :json
-              :body (json/generate-string new-cfg)})
-  {:listen [listen]
-   :automatic_https {:disable true}
-   :routes []})
+              :body (json/generate-string cfg)}))
+
+(defn create-server [conn listen]
+  (let [cfg (config conn)
+        new-cfg (assoc-in cfg
+                          [:apps :http :servers listen]
+                          {})]
+    (save-config conn new-cfg)
+    {:listen [listen]
+     :automatic_https {:disable true}
+     :routes []}))
 
 (defn add-route [conn server host type arg]
   (when (nil? (get server-types type))
     (throw (Exception. (format "Couldn't find server of type %s" type))))
-  (update server :routes conj {:handle []}))
+  (let [cfg (config conn)]
+    (update server :routes conj {:handle []})))
 
 (defn add-server [address id type args]
   (when (nil? (get server-types type))
