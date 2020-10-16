@@ -12,13 +12,13 @@ Tested with Caddy v2.2.1
 ### Leiningen
 
 ```
-[cawdy "0.2.1"]
+[cawdy "0.3.0"]
 ```
 
 ### deps.edn
 
 ```
-cawdy {:mvn/version "0.2.1"}
+cawdy {:mvn/version "0.3.0"}
 ```
 
 ## Usage
@@ -32,7 +32,7 @@ from a directory (`:files`)
 ```clojure
 (require '[cawdy.core :as cawdy])
 (def conn (cawdy/connect "http://localhost:2019")
-(cawdy/create-server conn ":2015")
+(cawdy/create-server conn {:listen [":2015"]})
 (cawdy/add-route conn :my-id "cawdy-response.example" :static {:body "hello"}))
 (cawdy/add-route conn :my-id "cawdy-files.example" :files {:root "/etc"}))
 ```
@@ -61,7 +61,7 @@ from a directory (`:files`)
 ### Add Static Response Handler
 
 ```clojure
-(cawdy/create-server conn ":2019")
+(cawdy/create-server conn {:listen [":2019"]})
 (cawdy/add-route conn :my-id "localhost" :static {:body "This gets returned"}))
 ```
 
@@ -77,7 +77,7 @@ Options for :static handler can be:
 ### Add File Server Handler
 
 ```clojure
-(cawdy/create-server conn ":2020")
+(cawdy/create-server conn {:listen [":2020"]})
 (cawdy/add-route conn :my-id "localhost" :static {:root "/etc"}))
 ```
 

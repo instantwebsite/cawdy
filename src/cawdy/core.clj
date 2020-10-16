@@ -14,6 +14,11 @@
       (json/parse-string true)
       (or {})))
 
+(defn clean-config [conn]
+  (-> (http/delete (str (:address conn) "/config/")
+                   {:content-type :json})
+      :body))
+
 (defn handlers [address id]
   (let [config (config address)]
     (->> (-> config
@@ -99,11 +104,12 @@
              {:content-type :json
               :body (json/generate-string cfg)}))
 
-(defn create-server [conn id listen]
+(defn create-server [conn id opts]
   (let [cfg (config conn)
-        server {:listen [listen]
-                :automatic_https {:disable true}
-                :routes []}
+        server (merge {:listen [":2020"]
+                       :automatic_https {:disable true}
+                       :routes []}
+                      (or opts {}))
         new-cfg (assoc-in cfg
                           [:apps :http :servers id]
                           server)]

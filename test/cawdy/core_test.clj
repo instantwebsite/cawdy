@@ -40,7 +40,7 @@
   (def conn (cawdy/connect "localhost:2019"))
 
   (-> conn
-      (create-server ":443")
+      (cawdy/create-server conn :my-id {:listen [":443"]})
       (add-route server "localhost" "/tmp/cawdytest")
       (remove-route server "localhost")
       (delete-server ":443")))
@@ -50,7 +50,7 @@
   (testing "setting config"
     (clean)
     (is (= {} (get-config)))
-    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
     (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
     (is (= (get-config)
            {:apps {:http {:servers {:my-id {:listen [":2015"],
@@ -60,7 +60,7 @@
                                                                 :handler "static_response"}]}]}}}}})))
   (testing "getting handlers"
     (clean)
-    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
     (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
     (is (= (cawdy/handlers conn :my-id)
            [{:body "hello",
@@ -68,35 +68,35 @@
 
   (testing "Setting simple response"
     (clean)
-    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
     (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
     (http-is "http://localhost:2015" "hello"))
 
   (testing "Add files server"
     (clean)
     (create-directory "/tmp/cawdytest" "hello there")
-    (cawdy/create-server conn :my-id ":2015")
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
     (cawdy/add-route conn :my-id "localhost" :files {:root "/tmp/cawdytest"})
     (http-is "http://localhost:2015/file" "hello there"))
 
   (testing "Files server with different listen address"
     (clean)
     (create-directory "/tmp/cawdytest" "hello there")
-    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
     (cawdy/add-route conn :my-id "localhost" :files {:root "/tmp/cawdytest"})
     (http-is "http://localhost:2016/file" "hello there"))
 
   (testing "Listen to domain"
     (clean)
     (create-directory "/tmp/cawdytest" "hello from domain")
-    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain"))
 
   (testing "Remove handler for domain"
     (clean)
     (create-directory "/tmp/cawdytest" "hello from domain")
-    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
     (cawdy/remove-route conn :my-id "cawdy.127.0.0.1.xip.io")
@@ -108,7 +108,7 @@
     (create-directory "/tmp/cawdytest" "hello from domain")
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
-    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
 
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (cawdy/add-route conn :my-id "cawdy2.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest2"})
@@ -121,7 +121,7 @@
     (create-directory "/tmp/cawdytest" "hello from domain")
     (create-directory "/tmp/cawdytest2" "hello from domain2")
 
-    (cawdy/create-server conn :my-id ":2016")
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
 
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
