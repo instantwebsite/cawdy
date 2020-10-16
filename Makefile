@@ -1,7 +1,7 @@
 test: unpack-caddy
-	caddy start
+	caddy/caddy start
 	lein test
-	caddy stop
+	caddy/caddy stop
 
 download-caddy:
 	@if [ -e "caddy.tar.gz" ]; then \
