@@ -116,8 +116,5 @@
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
 
-    (pprint (cawdy/handlers conn :my-id))
-    (pprint (cawdy/routes conn :my-id))
-
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest2"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain2")))

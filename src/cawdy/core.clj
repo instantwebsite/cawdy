@@ -166,24 +166,17 @@
         route-res (route-fn arg)
 
         routes (routes conn id)
-        _ (println "current routes")
-        _ (pprint routes)
+        handler (merge {:match [{:host [host]}]
+                        :handle [route-res]})
 
         new-routes (replace-route-with-host
                      routes
                      host
-                     route-res)
+                     handler)
 
-        _ (println "new routes")
-        _ (pprint new-routes)
-
-        handler (merge {:match [{:host [host]}]
-                        :handle new-routes})
         new-cfg (assoc-in cfg
                           [:apps :http :servers id :routes]
                           new-routes)]
-    (println "saving cfg")
-    (pprint new-cfg)
     (save-config conn new-cfg)
     new-cfg))
 
