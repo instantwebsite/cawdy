@@ -12,13 +12,13 @@ Tested with Caddy v2.2.1
 ### Leiningen
 
 ```
-[cawdy "0.2.0"]
+[cawdy "0.2.1"]
 ```
 
 ### deps.edn
 
 ```
-cawdy {:mvn/version "0.2.0"}
+cawdy {:mvn/version "0.2.1"}
 ```
 
 ## Usage
