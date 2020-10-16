@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/clojure:lein-2.7.1
+      - image: clojure:openjdk-11-lein-slim-buster
         auth:
           username: victorbjelkholm
           password: $DOCKERHUB_PASSWORD
@@ -21,5 +21,5 @@ jobs:
           paths:
             - ~/.m2
           key: v1-dependencies-{{ checksum "project.clj" }}
-      - run: sudo apt update && sudo apt install -y make
+      - run: apt update && apt install -y make curl tar
       - run: make test
