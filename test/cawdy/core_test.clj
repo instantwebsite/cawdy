@@ -93,6 +93,17 @@
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest"})
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain"))
 
+  (testing "Create server twice is noop"
+    (clean)
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
+    (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
+
+    (cawdy/create-server conn :my-id {:listen [":2016"]})
+    (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :static {:body "hello2"})
+
+    (http-is "http://localhost:2015" "hello")
+    (http-is "http://cawdy.127.0.0.1.xip.io:2015" "hello2"))
+
   (testing "Remove handler for domain"
     (clean)
     (create-directory "/tmp/cawdytest" "hello from domain")

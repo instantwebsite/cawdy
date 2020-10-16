@@ -105,16 +105,18 @@
               :body (json/generate-string cfg)}))
 
 (defn create-server [conn id opts]
-  (let [cfg (config conn)
-        server (merge {:listen [":2020"]
-                       :automatic_https {:disable true}
-                       :routes []}
-                      (or opts {}))
-        new-cfg (assoc-in cfg
-                          [:apps :http :servers id]
-                          server)]
-    (save-config conn new-cfg)
-    new-cfg))
+  (let [cfg (config conn)]
+    (if (-> cfg :apps :http :servers id nil?)
+      (let [server (merge {:listen [":2020"]
+                           :automatic_https {:disable true}
+                           :routes []}
+                          (or opts {}))
+            new-cfg (assoc-in cfg
+                              [:apps :http :servers id]
+                              server)]
+        (save-config conn new-cfg)
+        new-cfg)
+      cfg)))
 
 (defn static-route [{:keys [body]}]
   {:handler "static_response"
