@@ -1,32 +1,53 @@
 # cawdy
 
 [![Clojars Project](https://img.shields.io/clojars/v/cawdy.svg)](https://clojars.org/cawdy)
+[![CircleCI](https://circleci.com/gh/victorb/cawdy/tree/master.svg?style=svg)](https://circleci.com/gh/victorb/cawdy/tree/master)
 
 Clojure library for interacting with Caddy via the HTTP Admin API
 
-Tested with Caddy v2.2.0
+Tested with Caddy v2.2.1
 
 ## Installation
 
 ### Leiningen
 
 ```
-[cawdy "0.1.0"]
+[cawdy "0.2.0"]
 ```
 
 ### deps.edn
 
 ```
-cawdy {:mvn/version "0.1.0"}
+cawdy {:mvn/version "0.2.0"}
 ```
 
 ## Usage
 
-### Get Current Configuration
+### Quickstart
+
+Creates a new server that listens on :2015 and serves two domains. One that
+gives a static response (`:static`) for all requests and one that serves files
+from a directory (`:files`)
 
 ```clojure
 (require '[cawdy.core :as cawdy])
-(cawdy/config)
+(def conn (cawdy/connect "http://localhost:2019")
+(cawdy/create-server conn ":2015")
+(cawdy/add-route conn :my-id "cawdy-response.example" :static {:body "hello"}))
+(cawdy/add-route conn :my-id "cawdy-files.example" :files {:root "/etc"}))
+```
+
+### Connect to running Caddy server
+
+```clojure
+(require '[cawdy.core :as cawdy])
+(def conn (cawdy/connect "http://localhost:2019")
+```
+
+### Get Current Configuration
+
+```clojure
+(cawdy/config conn)
 => {:apps
     {:http
      {:servers
@@ -40,10 +61,8 @@ cawdy {:mvn/version "0.1.0"}
 ### Add Static Response Handler
 
 ```clojure
-(cawdy/add-server "http://localhost:2019"
-                  :my-server-id
-                  :static
-                  {:body "This gets returned"})
+(cawdy/create-server conn ":2019")
+(cawdy/add-route conn :my-id "localhost" :static {:body "This gets returned"}))
 ```
 
 ```shellsession
@@ -53,35 +72,31 @@ This gets returned
 
 Options for :static handler can be:
 
-- `:listen` - Listen address of the server, defaults to ":2015"
 - `:body` - What to send in the response body
-- `:host` - What host header is needed for getting the response, defaults to "localhost"
 
 ### Add File Server Handler
 
 ```clojure
-(cawdy/add-server "http://localhost:2019"
-                  :my-server-id
-                  :files
-                  {:directory "/etc"})
+(cawdy/create-server conn ":2020")
+(cawdy/add-route conn :my-id "localhost" :static {:root "/etc"}))
 ```
 
 ```shellsession
-$ curl --silent localhost:2019/hosts
+$ curl --silent localhost:2020/hosts
 # Static table lookup for hostnames.
 ...
 ```
 Options for :files handler are:
 
-- `:listen` - Listen address of the server, defaults to ":2015"
-- `:directory` - What directory should act as the root directory
-- `:host` - What host header is needed for getting the response, defaults to "localhost"
+- `:root` - What directory should act as the root directory
 
 ## Tests
 
-Make sure you have caddy running (via `caddy run`) before trying to run tests.
+Run tests with `make test` that will automatically download a compatible
+Caddy version to run the tests with. It'll also start caddy with no config,
+and turn it off after the tests.
 
-Also, don't run the tests with a caddy instance whos config is important as the
+Don't run the tests with a caddy instance whos config is important as the
 tests will remove the existing config before each test.
 
 ## License
