@@ -35,6 +35,9 @@
     (io/make-parents file-path)
     (spit (io/file file-path) file-content)))
 
+(defn rand-str [len]
+  (apply str (take len (repeatedly #(char (+ (rand 26) 65))))))
+
 (comment
 
   (def conn (cawdy/connect "localhost:2019"))
@@ -45,6 +48,7 @@
       (remove-route server "localhost")
       (delete-server ":443")))
 
+(def encode-handler (cawdy/encode-handler))
 
 (deftest cawdy-tests
   (testing "setting config"
@@ -56,14 +60,16 @@
            {:apps {:http {:servers {:my-id {:listen [":2015"],
                                             :automatic_https {:disable true}
                                             :routes [{:match [{:host ["localhost"]}]
-                                                      :handle [{:body "hello",
+                                                      :handle [encode-handler
+                                                               {:body "hello",
                                                                 :handler "static_response"}]}]}}}}})))
   (testing "getting handlers"
     (clean)
     (cawdy/create-server conn :my-id {:listen [":2015"]})
     (cawdy/add-route conn :my-id "localhost" :static {:body "hello"})
     (is (= (cawdy/handlers conn :my-id)
-           [{:body "hello",
+           [encode-handler
+            {:body "hello",
              :handler "static_response"}])))
 
   (testing "Setting simple response"
@@ -138,4 +144,17 @@
     (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain")
 
     (cawdy/add-route conn :my-id "cawdy.127.0.0.1.xip.io" :files {:root "/tmp/cawdytest2"})
-    (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain2")))
+    (http-is "http://cawdy.127.0.0.1.xip.io:2016/file" "hello from domain2"))
+
+  (testing "gzip'd resources (html, css files)"
+    (clean)
+    (create-directory "/tmp/cawdytest" (rand-str 2048))
+    (cawdy/create-server conn :my-id {:listen [":2015"]})
+    (cawdy/add-route conn :my-id "localhost" :files {:root "/tmp/cawdytest"})
+    (let [res (http/get
+                "http://localhost:2015/file"
+                {:headers {"Accept-Encoding" "deflate, gzip"}
+                 :decompress-body false})
+          headers (:headers res)]
+      (is (= "gzip" (get headers "Content-Encoding")))
+      (is (= "Accept-Encoding" (get headers "Vary"))))))

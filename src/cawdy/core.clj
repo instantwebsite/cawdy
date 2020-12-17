@@ -126,6 +126,11 @@
   {:handler "file_server"
    :root root})
 
+(defn encode-handler []
+  {:handler "encode"
+   :minimum_length 360 ;; Responses above this byte size will be gzip'd
+   :encodings {:gzip {:level 9}}})
+
 (def route-types
   {:static static-route
    :files files-route})
@@ -146,7 +151,8 @@
 
         routes (routes conn id)
         handler (merge {:match [{:host [host]}]
-                        :handle [route-res]})
+                        :handle [(encode-handler)
+                                 route-res]})
 
         new-routes (replace-route-with-host
                      routes
