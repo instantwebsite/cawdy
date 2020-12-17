@@ -17,3 +17,7 @@ unpack-caddy: download-caddy
 		mkdir caddy || true; \
 		tar xfv caddy.tar.gz -C caddy; \
 	fi
+
+clean-caddy:
+	rm caddy.tar.gz
+	rm -r caddy
